@@ -1,0 +1,518 @@
+
+<!-- saved from url=(0095)file:///D:/personal/Dropbox/private/Andres/kool/2014_spring/machinelearning/project/report.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<style type="text/css">
+.knitr.inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+},
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0em 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.rimage.left {
+  text-align: left;
+}
+.rimage.right {
+  text-align: right;
+}
+.rimage.center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>Image clustering using PCA and K-means clustering</title>
+
+<style>
+.rimage {
+  float: left;
+}
+p, .chunk,h2, .rcode {
+  clear:both;
+}
+article {
+  max-width: 1024px;
+  margin: 0 auto;
+}
+</style>
+</head>
+
+<body>
+<article>
+<section>
+<h1>Clustering with PCA and K-means</h1>
+<p>PCA is widely used in pattern detection (for example face detection). In this project we use PCA to detect patterns in image and use k-means clustering to find similar regions. 
+</p>
+<h2>Image processing in R</h2>
+<p>To process the image we must fist load it ... </p>
+<div class="chunk" id="load-image"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">))</span>
+<span class="hl kwd">library</span><span class="hl std">(</span><span class="hl str">"jpeg"</span><span class="hl std">)</span>
+</pre></div>
+<div class="warning"><pre class="knitr r">## Warning: package 'jpeg' was built under R version 3.0.3
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">image</span> <span class="hl kwb">=</span> <span class="hl kwd">readJPEG</span><span class="hl std">(</span><span class="hl str">"forest_medium_sharp.jpg"</span><span class="hl std">)</span>
+<span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfcol</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">),</span> <span class="hl kwc">mar</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">))</span>
+<span class="hl kwd">plot.new</span><span class="hl std">()</span>
+<span class="hl kwd">rasterImage</span><span class="hl std">(image,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl kwc">interpolate</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/load-image.png" title="plot of chunk load-image" alt="plot of chunk load-image" class="plot"></div></div>
+
+<p>
+... and convert into suitable format for clustering.
+</p>
+<div class="chunk" id="convert-image"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">data</span> <span class="hl kwb">=</span> <span class="hl kwd">data.frame</span><span class="hl std">(</span><span class="hl kwd">list</span><span class="hl std">(</span><span class="hl kwc">r</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(image[, ,</span> <span class="hl num">1</span><span class="hl std">]),</span> <span class="hl kwc">g</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(image[, ,</span> <span class="hl num">2</span><span class="hl std">]),</span> <span class="hl kwc">b</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(image[,</span>
+    <span class="hl std">,</span> <span class="hl num">3</span><span class="hl std">])))</span>
+<span class="hl kwd">head</span><span class="hl std">(data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##        r      g       b
+## 1 0.3922 0.3137 0.11373
+## 2 0.3216 0.2784 0.01961
+## 3 0.4902 0.4941 0.18039
+## 4 0.3294 0.2314 0.07451
+## 5 0.3725 0.3098 0.07843
+## 6 0.6353 0.5216 0.06275
+</pre></div>
+</div></div>
+
+
+</section>
+<section>
+<h2>Finding initial cluster centers</h2>
+<p>In order to do K-means clustering we need to specify the number of clusters and the initial cluster centers. As it is hard to detect the number of patterns and the inital patern configuations, we use simple colorspace clustering to form initial clusters.
+</p>
+<p>For this we can use R's built-in kmeans algorithm. We will visualize 9 cluster configurations, starting with two clusters and ending with 10 clusters
+</p>
+<div class="chunk" id="colorspace-clustering-loop"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwa">for</span> <span class="hl std">(k</span> <span class="hl kwa">in</span> <span class="hl num">2</span><span class="hl opt">:</span><span class="hl num">10</span><span class="hl std">) {</span>
+    <span class="hl com"># lets do clustering</span>
+    <span class="hl std">result</span> <span class="hl kwb">=</span> <span class="hl kwd">kmeans</span><span class="hl std">(data, k)</span>
+    <span class="hl com"># restore image</span>
+    <span class="hl std">rimage</span> <span class="hl kwb">=</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">1</span><span class="hl std">],</span> <span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">2</span><span class="hl std">],</span> <span class="hl num">3</span><span class="hl std">))</span>
+    <span class="hl kwd">dim</span><span class="hl std">(rimage)</span>
+    <span class="hl std">rimage[, ,</span> <span class="hl num">1</span><span class="hl std">]</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">centers[result</span><span class="hl opt">$</span><span class="hl std">cluster,</span> <span class="hl num">1</span><span class="hl std">]</span>
+    <span class="hl std">rimage[, ,</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">centers[result</span><span class="hl opt">$</span><span class="hl std">cluster,</span> <span class="hl num">2</span><span class="hl std">]</span>
+    <span class="hl std">rimage[, ,</span> <span class="hl num">3</span><span class="hl std">]</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">centers[result</span><span class="hl opt">$</span><span class="hl std">cluster,</span> <span class="hl num">3</span><span class="hl std">]</span>
+    <span class="hl kwd">plot.new</span><span class="hl std">()</span>
+    <span class="hl kwd">rasterImage</span><span class="hl std">(rimage,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl kwc">interpolate</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+    <span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Number of clusters:"</span><span class="hl std">, k))</span>
+<span class="hl std">}</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop1.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop2.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop3.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop4.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop5.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop6.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop7.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rcode">
+<div class="warning"><pre class="knitr r">## Warning: did not converge in 10 iterations
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop8.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div><div class="rimage default"><img src="./medium6_files/colorspace-clustering-loop9.png" title="plot of chunk colorspace-clustering-loop" alt="plot of chunk colorspace-clustering-loop" class="plot"></div></div>
+
+<p>Clustering with six clusters seems to bring out all distinct areas, so lets choose this as the cluster count and do clustering on this setup again and compare it with original.
+</p>
+
+<div class="chunk" id="colorspace-clustering"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">k</span> <span class="hl kwb">=</span> <span class="hl num">6</span>
+<span class="hl std">result</span> <span class="hl kwb">=</span> <span class="hl kwd">kmeans</span><span class="hl std">(data, k)</span>
+
+<span class="hl std">rimage</span> <span class="hl kwb">=</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">1</span><span class="hl std">],</span> <span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">2</span><span class="hl std">],</span> <span class="hl num">3</span><span class="hl std">))</span>
+<span class="hl std">rimage[, ,</span> <span class="hl num">1</span><span class="hl std">]</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">centers[result</span><span class="hl opt">$</span><span class="hl std">cluster,</span> <span class="hl num">1</span><span class="hl std">]</span>
+<span class="hl std">rimage[, ,</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">centers[result</span><span class="hl opt">$</span><span class="hl std">cluster,</span> <span class="hl num">2</span><span class="hl std">]</span>
+<span class="hl std">rimage[, ,</span> <span class="hl num">3</span><span class="hl std">]</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">centers[result</span><span class="hl opt">$</span><span class="hl std">cluster,</span> <span class="hl num">3</span><span class="hl std">]</span>
+
+<span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">))</span>
+<span class="hl kwd">plot.new</span><span class="hl std">()</span>
+<span class="hl kwd">rasterImage</span><span class="hl std">(rimage,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl kwc">interpolate</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+<span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Number of clusters:"</span><span class="hl std">, k))</span>
+
+<span class="hl kwd">plot.new</span><span class="hl std">()</span>
+<span class="hl kwd">rasterImage</span><span class="hl std">(image,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl kwc">interpolate</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+<span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Original image"</span><span class="hl std">))</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/colorspace-clustering.png" title="plot of chunk colorspace-clustering" alt="plot of chunk colorspace-clustering" class="plot"></div></div>
+
+<p>Print out the cluster centers
+</p>
+Below graph shows the distinct colors (cluster centers) 
+<div class="chunk" id="cluster-colors"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">))</span>
+<span class="hl std">counts</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">, k)</span>
+<span class="hl kwd">barplot</span><span class="hl std">(counts,</span> <span class="hl kwc">main</span> <span class="hl std">=</span> <span class="hl str">"Cluster colors"</span><span class="hl std">,</span> <span class="hl kwc">col</span> <span class="hl std">=</span> <span class="hl kwd">rgb</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[,</span> <span class="hl num">1</span><span class="hl std">], result</span><span class="hl opt">$</span><span class="hl std">centers[,</span>
+    <span class="hl num">2</span><span class="hl std">], result</span><span class="hl opt">$</span><span class="hl std">centers[,</span> <span class="hl num">3</span><span class="hl std">]))</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/cluster-colors.png" title="plot of chunk cluster-colors" alt="plot of chunk cluster-colors" class="plot"></div></div>
+
+<h2>Image processing vol. 2</h2>
+<p>In order to do clustering based on patterns in image, we will divide image into regions (16 by 16 pixel blocks) and treat each block as pattern. 
+</p><div class="chunk" id="block-15"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">blocks.size</span> <span class="hl kwb">=</span> <span class="hl num">16</span>
+<span class="hl std">blocks.dim</span> <span class="hl kwb">=</span> <span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">2</span><span class="hl std">]</span><span class="hl opt">/</span><span class="hl std">blocks.size</span>
+
+<span class="hl std">blocks</span> <span class="hl kwb">=</span> <span class="hl kwd">matrix</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">ncol</span> <span class="hl std">=</span> <span class="hl num">3</span> <span class="hl opt">*</span> <span class="hl std">blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">,</span> <span class="hl kwc">nrow</span> <span class="hl std">= blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">])</span>
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">(blocks.dim[</span><span class="hl num">1</span><span class="hl std">])) {</span>
+    <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">(blocks.dim[</span><span class="hl num">2</span><span class="hl std">])) {</span>
+        <span class="hl std">RGB</span> <span class="hl kwb">=</span> <span class="hl std">image[((i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.size</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl std">)</span><span class="hl opt">:</span><span class="hl std">(i</span> <span class="hl opt">*</span> <span class="hl std">blocks.size), ((j</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span>
+            <span class="hl std">blocks.size</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl std">)</span><span class="hl opt">:</span><span class="hl std">(j</span> <span class="hl opt">*</span> <span class="hl std">blocks.size), ]</span>
+        <span class="hl std">blocks[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span> <span class="hl std">j, ]</span> <span class="hl kwb">=</span> <span class="hl std">RGB</span>
+    <span class="hl std">}</span>
+<span class="hl std">}</span>
+</pre></div>
+</div></div>
+
+<p>In above code we defined following variables for later use
+</p><ul>
+<li>blocks.size - block size in pixels (16 in our case)
+</li><li>blocks.dim - number of blocks in image (x, y)
+</li><li>blocks - array of blocks [block index][pixel index]
+</li></ul>
+<div class="chunk" id="blocks-dimensions"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">blocks.size</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 16
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl std">blocks.dim</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 33 50
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">dim</span><span class="hl std">(blocks)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 1650  768
+</pre></div>
+</div></div>
+
+<p></p>
+<p>First lets verify that we are able to restore image. For this lets define helper function that plots the image from our array format.</p>
+<div class="chunk" id="blocks-plot"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">blocks.plot</span> <span class="hl kwb">&lt;-</span> <span class="hl kwa">function</span><span class="hl std">(</span><span class="hl kwc">blocks</span><span class="hl std">,</span> <span class="hl kwc">title</span><span class="hl std">) {</span>
+    <span class="hl std">rimage</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.size, blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">*</span>
+        <span class="hl std">blocks.size,</span> <span class="hl num">3</span><span class="hl std">))</span>
+    <span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">1</span><span class="hl std">]) {</span>
+        <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]) {</span>
+            <span class="hl std">rimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+                <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), ]</span> <span class="hl kwb">&lt;-</span> <span class="hl std">blocks[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span> <span class="hl std">j,</span>
+                <span class="hl std">]</span>
+        <span class="hl std">}</span>
+    <span class="hl std">}</span>
+    <span class="hl kwd">plot.new</span><span class="hl std">()</span>
+    <span class="hl kwd">rasterImage</span><span class="hl std">(rimage,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl kwc">interpolate</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+    <span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(title))</span>
+<span class="hl std">}</span>
+
+<span class="hl kwd">blocks.plot</span><span class="hl std">(blocks,</span> <span class="hl str">"restored image"</span><span class="hl std">)</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/blocks-plot.png" title="plot of chunk blocks-plot" alt="plot of chunk blocks-plot" class="plot"></div></div>
+
+<p>Lets define another helper function to normalize color values after pca.</p>
+<div class="chunk" id="range01"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">range01</span> <span class="hl kwb">&lt;-</span> <span class="hl kwa">function</span><span class="hl std">(</span><span class="hl kwc">x</span><span class="hl std">) {</span>
+    <span class="hl std">(x</span> <span class="hl opt">-</span> <span class="hl kwd">min</span><span class="hl std">(x))</span><span class="hl opt">/</span><span class="hl std">(</span><span class="hl kwd">max</span><span class="hl std">(x)</span> <span class="hl opt">-</span> <span class="hl kwd">min</span><span class="hl std">(x))</span>
+<span class="hl std">}</span>
+</pre></div>
+</div></div>
+
+<p>Now that we have our image divided into blocks we can use our inital color-based clustering results to assign each block into cluster by dominant color in it</p>
+<div class="chunk" id="initial-clustering-calc"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># block -&gt; cluster index maping</span>
+<span class="hl std">z</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(</span><span class="hl opt">-</span><span class="hl num">1</span><span class="hl std">, blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">])</span>
+
+<span class="hl com"># cluster indexes for each pixel</span>
+<span class="hl std">zimage</span> <span class="hl kwb">=</span> <span class="hl std">result</span><span class="hl opt">$</span><span class="hl std">cluster</span>
+<span class="hl kwd">dim</span><span class="hl std">(zimage)</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">1</span><span class="hl std">],</span> <span class="hl kwc">nrow</span> <span class="hl std">=</span> <span class="hl kwd">dim</span><span class="hl std">(image)[</span><span class="hl num">2</span><span class="hl std">])</span>
+
+<span class="hl com"># find dominant pixel for each block</span>
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">1</span><span class="hl std">]) {</span>
+    <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]) {</span>
+        <span class="hl std">pixels</span> <span class="hl kwb">&lt;-</span> <span class="hl std">zimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span>
+            <span class="hl std">(j</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size)]</span>
+        <span class="hl std">mode</span> <span class="hl kwb">=</span> <span class="hl std">pixels[</span><span class="hl kwd">which.max</span><span class="hl std">(</span><span class="hl kwd">tabulate</span><span class="hl std">(</span><span class="hl kwd">match</span><span class="hl std">(pixels,</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">4</span><span class="hl std">)))]</span>  <span class="hl com"># mode function</span>
+        <span class="hl std">z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span> <span class="hl std">j]</span> <span class="hl kwb">&lt;-</span> <span class="hl std">mode</span>
+    <span class="hl std">}</span>
+<span class="hl std">}</span>
+</pre></div>
+</div></div>
+
+Below graph shows the initial block clustering based of colorspace.
+<div class="chunk" id="initial-clustering-plot"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">bimage</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.size, blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.size,</span>
+    <span class="hl num">3</span><span class="hl std">))</span>
+<span class="hl kwd">dim</span><span class="hl std">(rimage)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 528 800   3
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">1</span><span class="hl std">]) {</span>
+    <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]) {</span>
+        <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+            <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">1</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+            <span class="hl std">j],</span> <span class="hl num">1</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+        <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+            <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+            <span class="hl std">j],</span> <span class="hl num">2</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+        <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+            <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+            <span class="hl std">j],</span> <span class="hl num">3</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+    <span class="hl std">}</span>
+<span class="hl std">}</span>
+<span class="hl kwd">plot.new</span><span class="hl std">()</span>
+<span class="hl kwd">rasterImage</span><span class="hl std">(bimage,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">)</span>
+<span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Initial clustering"</span><span class="hl std">))</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/initial-clustering-plot.png" title="plot of chunk initial-clustering-plot" alt="plot of chunk initial-clustering-plot" class="plot"></div></div>
+
+<h3>PCA</h3>
+<p>Next we will perform principal component analysis on each cluster, visualize first 16 components and store them in <code>pca.vectors</code> variable for later use. </p>
+<div class="chunk" id="pca-vectors"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">errors</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">c</span><span class="hl std">()</span>
+<span class="hl std">pca.vectors</span> <span class="hl kwb">=</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">NaN</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(k,</span> <span class="hl kwd">ncol</span><span class="hl std">(blocks),</span> <span class="hl num">16</span><span class="hl std">))</span>
+
+<span class="hl std">old.par</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">4</span><span class="hl std">,</span> <span class="hl num">4</span><span class="hl std">),</span> <span class="hl kwc">mar</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">),</span> <span class="hl kwc">oma</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">2</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">))</span>
+<span class="hl com"># foreach cluster lets calculate 16 PCA components</span>
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+    <span class="hl com"># covariance matrix</span>
+    <span class="hl std">Sigma</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">t</span><span class="hl std">(blocks[z</span> <span class="hl opt">==</span> <span class="hl std">i, ])</span> <span class="hl opt">%*%</span> <span class="hl std">blocks[z</span> <span class="hl opt">==</span> <span class="hl std">i, ]</span>
+    <span class="hl std">W</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">eigen</span><span class="hl std">(Sigma)</span>
+    <span class="hl com"># store vectors for future use</span>
+    <span class="hl std">pca.vectors[i, , ]</span> <span class="hl kwb">=</span> <span class="hl std">W</span><span class="hl opt">$</span><span class="hl std">vectors[,</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">16</span><span class="hl std">]</span>
+
+    <span class="hl com"># visualize first 16 components</span>
+    <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">16</span><span class="hl std">) {</span>
+        <span class="hl std">block</span> <span class="hl kwb">=</span> <span class="hl std">W</span><span class="hl opt">$</span><span class="hl std">values[j]</span> <span class="hl opt">%*%</span> <span class="hl kwd">t</span><span class="hl std">(W</span><span class="hl opt">$</span><span class="hl std">vectors[, j])</span>
+        <span class="hl std">block</span> <span class="hl kwb">=</span> <span class="hl kwd">range01</span><span class="hl std">(block)</span>
+        <span class="hl kwd">dim</span><span class="hl std">(block)</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">16</span><span class="hl std">,</span> <span class="hl num">16</span><span class="hl std">,</span> <span class="hl num">3</span><span class="hl std">)</span>
+        <span class="hl kwd">plot.new</span><span class="hl std">()</span>
+        <span class="hl kwd">rasterImage</span><span class="hl std">(block,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">)</span>
+    <span class="hl std">}</span>
+    <span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"cluster "</span><span class="hl std">, i,</span> <span class="hl str">" components, iteration ="</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">),</span> <span class="hl kwc">outer</span> <span class="hl std">=</span> <span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">}</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/pca-vectors1.png" title="plot of chunk pca-vectors" alt="plot of chunk pca-vectors" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-vectors2.png" title="plot of chunk pca-vectors" alt="plot of chunk pca-vectors" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-vectors3.png" title="plot of chunk pca-vectors" alt="plot of chunk pca-vectors" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-vectors4.png" title="plot of chunk pca-vectors" alt="plot of chunk pca-vectors" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-vectors5.png" title="plot of chunk pca-vectors" alt="plot of chunk pca-vectors" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-vectors6.png" title="plot of chunk pca-vectors" alt="plot of chunk pca-vectors" class="plot"></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">par</span><span class="hl std">(old.par)</span>
+</pre></div>
+</div></div>
+
+<p>Next we find out how well we can restore each block from each cluster.</p>
+<div class="chunk" id="pca-masks"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">blocks.masks</span> <span class="hl kwb">=</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">NaN</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(k,</span> <span class="hl kwd">nrow</span><span class="hl std">(blocks),</span> <span class="hl kwd">ncol</span><span class="hl std">(blocks)))</span>
+
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+    <span class="hl kwa">for</span> <span class="hl std">(a</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">nrow</span><span class="hl std">(blocks)) {</span>
+        <span class="hl std">weights</span> <span class="hl kwb">=</span> <span class="hl kwd">t</span><span class="hl std">(pca.vectors[i, , ])</span> <span class="hl opt">%*%</span> <span class="hl std">blocks[a, ]</span>
+        <span class="hl std">mask</span> <span class="hl kwb">=</span> <span class="hl std">pca.vectors[i, , ]</span> <span class="hl opt">%*%</span> <span class="hl std">weights</span>
+        <span class="hl std">blocks.masks[i, a, ]</span> <span class="hl kwb">=</span> <span class="hl std">mask</span>
+    <span class="hl std">}</span>
+<span class="hl std">}</span>
+</pre></div>
+</div></div>
+
+<p>Below are the results after reconstructing blocks from individual cluster components.</p>
+<div class="chunk" id="pca-restore-each"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">par.old</span> <span class="hl kwb">=</span> <span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">))</span>
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+    <span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(blocks.masks[i, , ]),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Restored image from cluster "</span><span class="hl std">,</span>
+        <span class="hl std">i,</span> <span class="hl str">", iteration ="</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">))</span>
+    <span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(</span><span class="hl kwd">abs</span><span class="hl std">(blocks</span> <span class="hl opt">-</span> <span class="hl std">blocks.masks[i, , ])),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Errors from cluster "</span><span class="hl std">,</span>
+        <span class="hl std">i,</span> <span class="hl str">", iteration ="</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">))</span>
+<span class="hl std">}</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/pca-restore-each1.png" title="plot of chunk pca-restore-each" alt="plot of chunk pca-restore-each" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-restore-each2.png" title="plot of chunk pca-restore-each" alt="plot of chunk pca-restore-each" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-restore-each3.png" title="plot of chunk pca-restore-each" alt="plot of chunk pca-restore-each" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-restore-each4.png" title="plot of chunk pca-restore-each" alt="plot of chunk pca-restore-each" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-restore-each5.png" title="plot of chunk pca-restore-each" alt="plot of chunk pca-restore-each" class="plot"></div><div class="rimage default"><img src="./medium6_files/pca-restore-each6.png" title="plot of chunk pca-restore-each" alt="plot of chunk pca-restore-each" class="plot"></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">par</span><span class="hl std">(par.old)</span>
+</pre></div>
+</div></div>
+
+<p>Next we find out the cluster that has minimal reconstruction error for each block ...
+</p>
+<div class="chunk" id="pca-errors"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># calculate errors</span>
+<span class="hl std">blocks.errors</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">matrix</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwd">nrow</span><span class="hl std">(blocks), k)</span>
+<span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+    <span class="hl kwa">for</span> <span class="hl std">(a</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">nrow</span><span class="hl std">(blocks)) {</span>
+        <span class="hl std">blocks.errors[a, i]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">mean</span><span class="hl std">((blocks[a, ]</span> <span class="hl opt">-</span> <span class="hl std">blocks.masks[i, a, ])</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+    <span class="hl std">}</span>
+<span class="hl std">}</span>
+</pre></div>
+</div></div>
+
+<p>... and assign block into that cluster.</p>
+<div class="chunk" id="pca-relabel"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># select cluster with smaller error</span>
+<span class="hl std">z.new</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">apply</span><span class="hl std">(blocks.errors,</span> <span class="hl num">1</span><span class="hl std">, which.min)</span>
+</pre></div>
+</div></div>
+
+<p>Now that we have re-assigned our blocks into clusters we can reconstruct image and compare it to origina.
+</p>
+<div class="chunk" id="restore-image"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">par.old</span> <span class="hl kwb">=</span> <span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">))</span>
+<span class="hl com"># restore image from best cluster</span>
+<span class="hl std">composite</span> <span class="hl kwb">=</span> <span class="hl kwd">matrix</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">ncol</span> <span class="hl std">=</span> <span class="hl num">3</span> <span class="hl opt">*</span> <span class="hl std">blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">,</span> <span class="hl kwc">nrow</span> <span class="hl std">= blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">])</span>
+
+<span class="hl kwa">for</span> <span class="hl std">(a</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">nrow</span><span class="hl std">(blocks)) {</span>
+    <span class="hl std">composite[a, ]</span> <span class="hl kwb">=</span> <span class="hl std">blocks.masks[z.new[a], a, ]</span>
+<span class="hl std">}</span>
+<span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(composite),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Restored image, iteration ="</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">))</span>
+<span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(</span><span class="hl kwd">abs</span><span class="hl std">(blocks</span> <span class="hl opt">-</span> <span class="hl std">composite)),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Restored image error, iteration ="</span><span class="hl std">,</span>
+    <span class="hl num">1</span><span class="hl std">))</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/restore-image.png" title="plot of chunk restore-image" alt="plot of chunk restore-image" class="plot"></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwd">par</span><span class="hl std">(par.old)</span>
+</pre></div>
+</div></div>
+
+
+<p>Lets save overall mean square error for later ploting</p>
+<div class="chunk" id="error"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># overall error</span>
+<span class="hl std">errors</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">c</span><span class="hl std">(errors,</span> <span class="hl kwd">mean</span><span class="hl std">((blocks</span> <span class="hl opt">-</span> <span class="hl std">composite)</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">))</span>
+</pre></div>
+</div></div>
+
+
+<p>And we can continue with second iteration until clustering converges</p>
+<div class="chunk" id="iteration-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">z</span> <span class="hl kwb">=</span> <span class="hl std">z.new</span>
+
+<span class="hl com"># plot inital clustering of blocks</span>
+<span class="hl std">bimage</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.size, blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.size,</span>
+    <span class="hl num">3</span><span class="hl std">))</span>
+<span class="hl kwd">dim</span><span class="hl std">(rimage)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 528 800   3
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">1</span><span class="hl std">]) {</span>
+    <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]) {</span>
+        <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+            <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">1</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+            <span class="hl std">j],</span> <span class="hl num">1</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+        <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+            <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+            <span class="hl std">j],</span> <span class="hl num">2</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+        <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+            <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+            <span class="hl std">j],</span> <span class="hl num">3</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+    <span class="hl std">}</span>
+<span class="hl std">}</span>
+<span class="hl kwd">plot.new</span><span class="hl std">()</span>
+<span class="hl kwd">rasterImage</span><span class="hl std">(bimage,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">)</span>
+<span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Initial clustering"</span><span class="hl std">))</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/iteration-21.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rcode">
+<div class="source"><pre class="knitr r"><span class="hl kwa">for</span> <span class="hl std">(m</span> <span class="hl kwa">in</span> <span class="hl num">2</span><span class="hl opt">:</span><span class="hl num">10</span><span class="hl std">) {</span>
+
+    <span class="hl std">pca.vectors</span> <span class="hl kwb">=</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">NaN</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(k,</span> <span class="hl kwd">ncol</span><span class="hl std">(blocks),</span> <span class="hl num">16</span><span class="hl std">))</span>
+
+    <span class="hl std">old.par</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">par</span><span class="hl std">(</span><span class="hl kwc">mfrow</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">4</span><span class="hl std">,</span> <span class="hl num">4</span><span class="hl std">),</span> <span class="hl kwc">mar</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">),</span> <span class="hl kwc">oma</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">))</span>
+    <span class="hl com"># </span>
+    <span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+        <span class="hl com"># covariance matrix</span>
+        <span class="hl std">Sigma</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">t</span><span class="hl std">(blocks[z</span> <span class="hl opt">==</span> <span class="hl std">i, ])</span> <span class="hl opt">%*%</span> <span class="hl std">blocks[z</span> <span class="hl opt">==</span> <span class="hl std">i, ]</span>  <span class="hl com"># cov(blocks[z == i,]) </span>
+        <span class="hl com"># Use eigenvector decomposition to find the directions</span>
+        <span class="hl std">W</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">eigen</span><span class="hl std">(Sigma)</span>
+        <span class="hl std">pca.vectors[i, , ]</span> <span class="hl kwb">=</span> <span class="hl std">W</span><span class="hl opt">$</span><span class="hl std">vectors[,</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">16</span><span class="hl std">]</span>
+
+        <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">16</span><span class="hl std">) {</span>
+            <span class="hl std">block</span> <span class="hl kwb">=</span> <span class="hl std">W</span><span class="hl opt">$</span><span class="hl std">values[j]</span> <span class="hl opt">%*%</span> <span class="hl kwd">t</span><span class="hl std">(W</span><span class="hl opt">$</span><span class="hl std">vectors[, j])</span>
+            <span class="hl std">block</span> <span class="hl kwb">=</span> <span class="hl kwd">range01</span><span class="hl std">(block)</span>
+            <span class="hl kwd">dim</span><span class="hl std">(block)</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl num">16</span><span class="hl std">,</span> <span class="hl num">16</span><span class="hl std">,</span> <span class="hl num">3</span><span class="hl std">)</span>
+            <span class="hl kwd">plot.new</span><span class="hl std">()</span>
+            <span class="hl kwd">rasterImage</span><span class="hl std">(block,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">)</span>
+        <span class="hl std">}</span>
+        <span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"cluster "</span><span class="hl std">, i,</span> <span class="hl str">" components, iteration ="</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">),</span> <span class="hl kwc">outer</span> <span class="hl std">=</span> <span class="hl num">TRUE</span><span class="hl std">)</span>
+    <span class="hl std">}</span>
+    <span class="hl kwd">par</span><span class="hl std">(old.par)</span>
+
+    <span class="hl com"># restore each block by all cluster components</span>
+    <span class="hl std">blocks.masks</span> <span class="hl kwb">=</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">NaN</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(k,</span> <span class="hl kwd">nrow</span><span class="hl std">(blocks),</span> <span class="hl kwd">ncol</span><span class="hl std">(blocks)))</span>
+
+    <span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+        <span class="hl kwa">for</span> <span class="hl std">(a</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">nrow</span><span class="hl std">(blocks)) {</span>
+            <span class="hl std">weights</span> <span class="hl kwb">=</span> <span class="hl kwd">t</span><span class="hl std">(pca.vectors[i, , ])</span> <span class="hl opt">%*%</span> <span class="hl std">blocks[a, ]</span>
+            <span class="hl std">mask</span> <span class="hl kwb">=</span> <span class="hl std">pca.vectors[i, , ]</span> <span class="hl opt">%*%</span> <span class="hl std">weights</span>
+            <span class="hl std">blocks.masks[i, a, ]</span> <span class="hl kwb">=</span> <span class="hl std">mask</span>
+        <span class="hl std">}</span>
+        <span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(blocks.masks[i, , ]),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Restored image from cluster "</span><span class="hl std">,</span>
+            <span class="hl std">i,</span> <span class="hl str">", iteration ="</span><span class="hl std">, m))</span>
+        <span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(</span><span class="hl kwd">abs</span><span class="hl std">(blocks</span> <span class="hl opt">-</span> <span class="hl std">blocks.masks[i, , ])),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Errors from cluster "</span><span class="hl std">,</span>
+            <span class="hl std">i,</span> <span class="hl str">", iteration ="</span><span class="hl std">, m))</span>
+    <span class="hl std">}</span>
+
+
+    <span class="hl com"># calculate errors</span>
+    <span class="hl std">blocks.errors</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">matrix</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwd">nrow</span><span class="hl std">(blocks), k)</span>
+    <span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl kwd">seq_len</span><span class="hl std">(k)) {</span>
+        <span class="hl kwa">for</span> <span class="hl std">(a</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">nrow</span><span class="hl std">(blocks)) {</span>
+            <span class="hl std">blocks.errors[a, i]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">mean</span><span class="hl std">((blocks[a, ]</span> <span class="hl opt">-</span> <span class="hl std">blocks.masks[i, a, ])</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+        <span class="hl std">}</span>
+    <span class="hl std">}</span>
+
+    <span class="hl com"># select cluster with smaller error</span>
+    <span class="hl std">z.new</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">apply</span><span class="hl std">(blocks.errors,</span> <span class="hl num">1</span><span class="hl std">, which.min)</span>
+
+    <span class="hl com"># restore image from best cluster</span>
+    <span class="hl std">composite</span> <span class="hl kwb">=</span> <span class="hl kwd">matrix</span><span class="hl std">(</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">ncol</span> <span class="hl std">=</span> <span class="hl num">3</span> <span class="hl opt">*</span> <span class="hl std">blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">,</span> <span class="hl kwc">nrow</span> <span class="hl std">= blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span>
+        <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">])</span>
+    <span class="hl kwd">dim</span><span class="hl std">(composite)</span>
+    <span class="hl kwa">for</span> <span class="hl std">(a</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl kwd">nrow</span><span class="hl std">(blocks)) {</span>
+        <span class="hl std">composite[a, ]</span> <span class="hl kwb">=</span> <span class="hl std">blocks.masks[z.new[a], a, ]</span>
+    <span class="hl std">}</span>
+    <span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(composite),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Restored image, iteration ="</span><span class="hl std">, m))</span>
+    <span class="hl kwd">blocks.plot</span><span class="hl std">(</span><span class="hl kwd">range01</span><span class="hl std">(</span><span class="hl kwd">abs</span><span class="hl std">(blocks</span> <span class="hl opt">-</span> <span class="hl std">composite)),</span> <span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Restored image error, iteration ="</span><span class="hl std">,</span>
+        <span class="hl std">m))</span>
+
+    <span class="hl com"># overall error</span>
+    <span class="hl std">errors</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">c</span><span class="hl std">(errors,</span> <span class="hl kwd">mean</span><span class="hl std">((blocks</span> <span class="hl opt">-</span> <span class="hl std">composite)</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">))</span>
+    <span class="hl kwd">plot</span><span class="hl std">(errors,</span> <span class="hl kwc">type</span> <span class="hl std">=</span> <span class="hl str">"l"</span><span class="hl std">,</span> <span class="hl kwc">lwd</span> <span class="hl std">=</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl kwc">xlab</span> <span class="hl std">=</span> <span class="hl str">""</span><span class="hl std">,</span> <span class="hl kwc">ylab</span> <span class="hl std">=</span> <span class="hl str">""</span><span class="hl std">,</span> <span class="hl kwc">main</span> <span class="hl std">=</span> <span class="hl str">"MSE"</span><span class="hl std">)</span>
+    <span class="hl kwd">points</span><span class="hl std">(errors,</span> <span class="hl kwc">pch</span> <span class="hl std">=</span> <span class="hl num">16</span><span class="hl std">,</span> <span class="hl kwc">col</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">"blue"</span><span class="hl std">,</span> <span class="hl str">"red"</span><span class="hl std">))</span>
+
+
+    <span class="hl std">bimage</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">array</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span> <span class="hl kwc">dim</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(blocks.dim[</span><span class="hl num">1</span><span class="hl std">]</span> <span class="hl opt">*</span> <span class="hl std">blocks.size, blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">*</span>
+        <span class="hl std">blocks.size,</span> <span class="hl num">3</span><span class="hl std">))</span>
+    <span class="hl kwd">dim</span><span class="hl std">(rimage)</span>
+    <span class="hl kwa">for</span> <span class="hl std">(i</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">1</span><span class="hl std">]) {</span>
+        <span class="hl kwa">for</span> <span class="hl std">(j</span> <span class="hl kwa">in</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]) {</span>
+            <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+                <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">1</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+                <span class="hl std">j],</span> <span class="hl num">1</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+            <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+                <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+                <span class="hl std">j],</span> <span class="hl num">2</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+            <span class="hl std">bimage[(blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size), (blocks.size</span> <span class="hl opt">*</span> <span class="hl std">(j</span> <span class="hl opt">-</span>
+                <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">+</span> <span class="hl num">1</span><span class="hl opt">:</span><span class="hl std">blocks.size),</span> <span class="hl num">2</span><span class="hl std">]</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">rep</span><span class="hl std">(result</span><span class="hl opt">$</span><span class="hl std">centers[z[(i</span> <span class="hl opt">-</span> <span class="hl num">1</span><span class="hl std">)</span> <span class="hl opt">*</span> <span class="hl std">blocks.dim[</span><span class="hl num">2</span><span class="hl std">]</span> <span class="hl opt">+</span>
+                <span class="hl std">j],</span> <span class="hl num">3</span><span class="hl std">], blocks.size</span><span class="hl opt">^</span><span class="hl num">2</span><span class="hl std">)</span>
+        <span class="hl std">}</span>
+    <span class="hl std">}</span>
+    <span class="hl kwd">plot.new</span><span class="hl std">()</span>
+    <span class="hl kwd">rasterImage</span><span class="hl std">(bimage,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">0</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl std">)</span>
+    <span class="hl kwd">mtext</span><span class="hl std">(</span><span class="hl kwd">paste</span><span class="hl std">(</span><span class="hl str">"Clustered blocks, iteration ="</span><span class="hl std">, m))</span>
+
+    <span class="hl kwa">if</span> <span class="hl std">(</span><span class="hl kwd">all</span><span class="hl std">(z</span> <span class="hl opt">==</span> <span class="hl std">z.new)) {</span>
+        <span class="hl kwa">break</span>
+    <span class="hl std">}</span>
+    <span class="hl com"># repeat</span>
+    <span class="hl std">z</span> <span class="hl kwb">=</span> <span class="hl std">z.new</span>
+
+<span class="hl std">}</span>
+</pre></div>
+</div><div class="rimage default"><img src="./medium6_files/iteration-22.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-23.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-24.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-25.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-26.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-27.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-28.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-29.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-210.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-211.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-212.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-213.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-214.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-215.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-216.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-217.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-218.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-219.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-220.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-221.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-222.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-223.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-224.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-225.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-226.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-227.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-228.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-229.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-230.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-231.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-232.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-233.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-234.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-235.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-236.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-237.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-238.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-239.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-240.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-241.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-242.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-243.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-244.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-245.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-246.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-247.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-248.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-249.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-250.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-251.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-252.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-253.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-254.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-255.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-256.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-257.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-258.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-259.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-260.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-261.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-262.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-263.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-264.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-265.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-266.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-267.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-268.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-269.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-270.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-271.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-272.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-273.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-274.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-275.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-276.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-277.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-278.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-279.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-280.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-281.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-282.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-283.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-284.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-285.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-286.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-287.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-288.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-289.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-290.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-291.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-292.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-293.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-294.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-295.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-296.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-297.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-298.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-299.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2100.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2101.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2102.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2103.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2104.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2105.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2106.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2107.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2108.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2109.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2110.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2111.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2112.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2113.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2114.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2115.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2116.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2117.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2118.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2119.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2120.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2121.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2122.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2123.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2124.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2125.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2126.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2127.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2128.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2129.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2130.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2131.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2132.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div><div class="rimage default"><img src="./medium6_files/iteration-2133.png" title="plot of chunk iteration-2" alt="plot of chunk iteration-2" class="plot"></div></div>
+
+</section></article>
+
+
+</body></html>
