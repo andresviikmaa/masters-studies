@@ -1,3 +1,3 @@
 masters studies @ut
-http://andresviikmaa.github.io/masters-studies/
 =======
+http://andresviikmaa.github.io/masters-studies/
