@@ -1,0 +1,332 @@
+% !TEX encoding = UTF-8 Unicode
+\documentclass[12pt]{article}
+
+
+% A package for setting layout and margins for your thesis 
+\usepackage[a4paper, margin=2.54cm]{geometry}
+
+
+% Use package babel for English or Estonian 
+% If you use Estonian make sure that Estonian hyphenation is installed 
+% - hypen-estonian or eehyp packages
+\usepackage[estonian, english]{babel} 
+% \usepackage[english]{babel}
+% \usepackage[estonian]{babel}
+%
+%
+% When you write in Estonian then you want to use text with right character set
+% By default LaTeX does not know what to do with ???u letters. You have to specify
+% a correct input and font encoding. For that you have to Google the Web     
+%
+% For TexShop under MacOS X. The right lines are 
+%\usepackage[applemac]{inputenc}
+\usepackage[T1]{fontenc}
+%
+% For Windows and Linux the right magic lines are   
+% \usepackage[latin1]{inputenc}
+% \usepackage[latin5]{inputenc}
+% \usepackage[T1]{fontenc}
+
+
+% General packages for math in general, theorems and symbols 
+% Read ftp://ftp.ams.org/ams/doc/amsmath/short-math-guide.pdf for further information
+\usepackage{amsmath} 
+\usepackage{amsthm}
+\usepackage{amssymb}
+
+% Optional calligraphic fonts    
+% \usepackage[mathscr]{eucal}
+
+% Packages for building tables and tabulars 
+\usepackage{array}
+\usepackage{tabu}   % Wide lines in tables
+\usepackage{xspace} % Non-eatable spaces in macros
+
+% Including graphical images and setting the figure directory
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+% Packages for getting clickable links in PDF file
+\usepackage{hyperref}
+\usepackage[all]{hypcap}
+
+
+% Packages for defining colourful text together with some colours
+\usepackage{color}
+\usepackage{xcolor} 
+%\definecolor{dkgreen}{rgb}{0,0.6,0}
+%\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+
+% Standard package for drawing algorithms
+% Since the thesis in article format we must define \chapter for
+% the package algorithm2e (otherwise obscure errors occur) 
+\let\chapter\section
+\usepackage[ruled, vlined, linesnumbered]{algorithm2e}
+
+% Fix a  set of keywords which you use inside algorithms
+\SetKw{True}{true}
+\SetKw{False}{false}
+\SetKwData{typeInt}{Int}
+\SetKwData{typeRat}{Rat}
+\SetKwData{Defined}{Defined}
+\SetKwFunction{parseStatement}{parseStatement}
+
+
+% Nice todo notes
+\usepackage{todonotes}
+
+
+% Proper way to create coloured code listings
+\usepackage{listings}
+\lstset{ 
+  %language=python,                % the language of the code
+  language=C++,
+  basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+  %numbers=left,                   % where to put the line-numbers
+  %numberstyle=\footnotesize,      % the size of the fonts that are used for the line-numbers
+  numberstyle=\tiny\color{gray}, 
+  stepnumber=1,                    % the step between two line-numbers. If it's 1, each line 
+                                   % will be numbered
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  backgroundcolor=\color{white},   % choose the background color. You must add \usepackage{color}
+  showspaces=false,                % show spaces adding particular underscores
+  showstringspaces=false,          % underline spaces within strings
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  frame = lines,
+  %frame=single,                   % adds a frame around the code
+  rulecolor=\color{black},		   % if not set, the frame-color may be changed on line-breaks within 
+                                   % not-black text (e.g. commens (green here))
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  captionpos=b,                    % sets the caption-position to bottom
+  breaklines=true,                 % sets automatic line breaking
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  %title=\lstname,                 % show the filename of files included with \lstinputlisting;
+                                   % also try caption instead of title
+                                   % also try caption instead of title
+  keywordstyle=\color{blue},       % keyword style
+  commentstyle=\color{dkgreen},    % comment style
+  stringstyle=\color{mauve},       % string literal style
+  escapeinside={\%*}{*)},          % if you want to add a comment within your code
+  morekeywords={*,game, fun}       % if you want to add more keywords to the set
+}
+
+
+% Obscure packages to write logic formulae and program semantics
+% Unless you do a bachelor thesis on program semantics or static code analysis you do not need that
+% http://logicmatters.net/resources/ndexamples/proofsty3.html <= writing type rules => use semantic::inference
+% ftp://tug.ctan.org/tex-archive/macros/latex/contrib/semantic/semantic.pdf
+\usepackage{proof}
+\usepackage{semantic} 
+\setlength{\inferLineSkip}{4pt}
+\def\predicatebegin #1\predicateend{$\Gamma \vdash #1$}
+
+% If you really want to draw figures in LaTeX use packages tikz or pstricks
+% However, getting a corresponding illustrations is really painful  
+
+
+% Define your favorite macros that you use inside the thesis 
+% Name followed by non-removable space
+\newcommand{\proveit}{ProveIt\xspace}
+
+% Macros that make sure that the math mode is set
+\newcommand{\typeF}[1] {\ensuremath{\mathsf{type_{#1}}}\xspace}
+\newcommand{\opDiv}{\ensuremath{\backslash \mathsf{div}}\xspace} 
+
+% Nice Todo box
+\newcommand{\TODO}{\todo[inline]}
+
+% A way to define theorems and lemmata
+\newtheorem{theorem}{Theorem}
+
+
+
+
+
+
+
+
+%%% BEGIN DOCUMENT
+\begin{document}
+
+% BEGIN TITLE PAGE
+\thispagestyle{empty}
+\begin{center}
+
+\large
+UNIVERSITY OF TARTU\\[2mm]
+\uppercase{Faculty of Mathematics and Computer Science}\\[2mm]
+Institute of Computer Science\\
+Computer Science Curriculum\\[2mm]
+
+%\vspace*{\stretch{5}}
+\vspace{25mm}
+
+\Large Andres Viikmaa
+
+\vspace{4mm}
+
+\huge Building product database for shopping search engine
+
+%\vspace*{\stretch{7}}
+\vspace{20mm}
+
+\Large Master's Thesis (30 ECTS)
+
+\end{center}
+
+\vspace{2mm}
+
+\begin{flushright}
+ {
+ \setlength{\extrarowheight}{5pt}
+ \begin{tabular}{r l} 
+  \sffamily Supervisor: & \sffamily  Timo Petmanson, MSc
+ \end{tabular}
+ }
+\end{flushright}
+
+%\vspace*{\stretch{3}}
+\vspace{10mm}
+
+%{\noindent Author: .................................................................................... ``.....'' ..........\hskip16pt 2048}
+\vspace{2mm}
+
+
+%{\noindent Supervisor: ............................................................................... ``.....'' ..........\hskip16pt 2048}
+
+\vspace{2mm}
+
+%{\noindent Supervisor: ............................................................................... ``.....'' ..........\hskip16pt 2048}
+
+\vspace{8mm}
+
+
+\vfill
+\centerline{Tartu 2015}
+
+% END TITLE PAGE
+
+% If the thesis is printed on both sides of the page then 
+% the second page must be must be empty. Comment this out
+% if you print only to one side of the page comment this out
+% \newpage
+% \thispagestyle{empty}    
+% \phantom{Text to fill the page}
+% END OF EXTRA PAGE WITHOUT NUMBER
+
+
+% Remember to remove this from the final thesis version
+\newpage
+
+% COMPULSORY INFO PAGE
+\newpage
+
+
+\selectlanguage{english}
+\noindent\textbf{\large Building product databae for shopping searchengine}
+\vspace*{3ex}
+{\flushleft{\textbf{Abstract:}} }
+
+\noindent \TODO{Abstract} 
+
+
+\vspace*{3ex}
+{\flushleft{\textbf{Keywords:}\TODO{List of keywords}}}
+\vspace*{6ex}
+
+
+\selectlanguage{estonian}
+\noindent\textbf{\large Tootekataloogi loomine toodete otsingumooriti jaoks}
+\vspace*{3ex}
+
+\noindent\textbf{Lühikokkuvõte:} 
+\noindent \TODO{Abstract} 
+
+
+\vspace*{3ex}
+
+\noindent\textbf{Võtmesõnad:}\TODO{List of keywords}
+
+\newpage
+\listoftodos[Unsolved issues]
+% END OF TODO PAGE 
+
+\selectlanguage{english}
+
+
+\newpage
+\tableofcontents
+
+
+
+\newpage
+\section{Introduction}
+Creating product information database includes gathering product data from hundreds of thousand manufactures. Each of them has 
+
+\clearpage
+\section{Scraping the web}
+
+\section{Conclusion} 
+
+\TODO{what did you do?} 
+\TODO{What are the results?}
+\TODO{future work?}
+
+
+%\newpage
+
+% \selectlanguage{estonian}
+
+% \section{Eestikeelne pealkiri}
+% Bakalaureuset??(6 EAP) \\
+% Eesnimi Perekonnanimi \\
+% Res¸mee \\
+
+
+% \TODO{Use introduction and conclusion to give a brief overview of what this thesis is about}
+
+\selectlanguage{english}
+
+\newpage
+\bibliographystyle{alpha}
+\bibliography{bachelor-thesis}
+
+\appendix
+\pagebreak
+\section*{\small Non-exclusive licence to reproduce thesis and make thesis public}
+
+
+I, Alice Cooper (date of birth: 4th of February 2048),
+
+\begin{tabbing}
+\= Xiii\=\kill
+\>1. \> herewith grant the University of Tartu a free permit (non-exclusive licence) to:\\\\ 
+
+\>1.1\> 
+\begin{minipage}[t]{14.2cm}
+reproduce, for the purpose of preservation and making available to the public, including for addition to the DSpace digital archives until expiry of the term of validity of the copyright, and
+\end{minipage}
+\\\\
+\>1.2 
+\begin{minipage}[t]{14.2cm}
+make available to the public via the web environment of the University of Tartu, including via the DSpace digital archives until expiry of the term of validity of the copyright,\\ 
+
+Type Inference for a Fourth Order Logic Formulae\\   
+
+supervised by Axel Rose and May Flower
+
+\end{minipage}\\\\ 
+\>2. \>I am aware of the fact that the author retains these rights.\\\\
+\>3. \>
+\begin{minipage}[t]{14.2cm}
+I certify that granting the non-exclusive licence does not infringe the intellectual property rights or rights arising from the Personal Data Protection Act. 
+\end{minipage}\\
+\end{tabbing}
+
+\noindent
+Tartu/Tallinn/Narva/P?rnu/Viljandi, dd.mm.yyyy
+
+
+\end{document}
