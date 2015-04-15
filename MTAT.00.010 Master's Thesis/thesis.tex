@@ -1,10 +1,10 @@
-% !TEX encoding = UTF-8 Unicode
+%!TEX encoding = UTF-8 Unicode
 \documentclass[12pt]{article}
 
 
 % A package for setting layout and margins for your thesis 
 \usepackage[a4paper, margin=2.54cm]{geometry}
-
+\usepackage[utf8]{inputenc}
 
 % Use package babel for English or Estonian 
 % If you use Estonian make sure that Estonian hyphenation is installed 
@@ -263,12 +263,45 @@ Computer Science Curriculum\\[2mm]
 
 \newpage
 \section{Introduction}
-Creating product information database includes gathering product data from hundreds of thousand manufactures. Each of them has 
+Creating product information database includes gathering product data from hundreds of thousand manufactures. Contacting each of them individually is time consuming and manual process requiring large amount of human labour. 
 
 \clearpage
 \section{Scraping the web}
-\subsection{Semantic web}
+ \TODO{Kirjeldus, et mis on web scaping} 
 
+\subsection{Extracting data from web}
+ \TODO{HTML lehtede parsimine} 
+ \TODO{css selektorid} 
+ \TODO{regulaaravaldised} 
+\cite{kanaoka_ducky:_2014}
+\subsection{Semantic web}
+https://courses.cs.ut.ee/2007/internet/Main/Web3
+ \TODO{Üldine kirjeldus semantic veebist} 
+ \TODO{Ajalugu} 
+ \TODO{Tänapäev} 
+ \TODO{Mis see pole piisav} 
+
+\subsection{Web crawlers}
+ \TODO{Käivad ainult mööda linke, ei vaata väga sisu} 
+ \TODO{Lühike sissejuhatus ajaloost tänapäevani ja mõned näited} 
+http://nutch.apache.org/
+
+\subsection{Web scrapers}
+ \TODO{Tegelevad siis ka andmete eraldamisega lisaks linkidel käimisele} 
+ \TODO{Erinevad tasemed alates lihtsast skriptist lõpetades valmisprogrammidega} 
+ \TODO{Andmete eraldamine tuleb ise teha} 
+
+
+\subsection{Web scraping as a service}
+ \TODO{Pole arvutusvõimsust -> kasuta teenust} 
+ \TODO{Lihtne liides click-and-go} 
+\cite{buzzilla_ltd_direct_2015}
+
+\subsection{Automatic web scraping and data extraction}
+ \TODO{Senimaani, iga leht on eraldiseisev objekt} 
+ \TODO{Enamasti paljud lehed sarnase struktuuriga, populaarsed veepipoe platformid, blogid, foorumid} 
+ \TODO{Sarnast sisu esineb mitmel veebilehel - saab õppida sisu baasil lehe struktuuri} 
+ 
 \section{Conclusion} 
 
 \TODO{what did you do?} 
@@ -292,7 +325,7 @@ Creating product information database includes gathering product data from hundr
 
 \newpage
 \bibliographystyle{alpha}
-\bibliography{bachelor-thesis}
+\bibliography{thesis}
 
 \appendix
 \pagebreak
